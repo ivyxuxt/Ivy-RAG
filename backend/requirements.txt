@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pypdf
+numpy
+httpx
+python-dotenv
+pydantic
+pytest
+pytest-asyncio
+httpx
+slowapi
