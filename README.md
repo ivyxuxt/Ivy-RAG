@@ -45,13 +45,13 @@ After generation, each sentence is embedded and compared against the retrieved c
 
 ---
 
-## Example questions
+## Example
 
-These work well after uploading the MBAn employment reports:
+After uploading three years of MBAn employment reports:
 
-- What was the median base salary in 2025?
-- How did average base salary change from 2019 to 2025?
-- Compare the 2023, 2024, and 2025 reports on salary, acceptance rate, and top industry.
+> *Compare the 2023–2025 MBAn employment reports in a table. For each year, report average base salary, average signing bonus, 6-month acceptance rate, U.S. placement rate, and top industry. Then give 3–5 bullet points on the biggest changes across years.*
+
+The system retrieves relevant passages from each document, generates a Markdown table, and adds cited takeaways — returning an insufficient-evidence response if the documents do not support the question.
 
 ---
 
