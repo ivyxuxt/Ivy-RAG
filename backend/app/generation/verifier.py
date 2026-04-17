@@ -2,16 +2,25 @@
 Post-hoc hallucination verifier.
 
 Step 1 (local): per-sentence cosine similarity vs. retrieved chunks.
-    If max_sim < SENTENCE_EVIDENCE_THRESHOLD → "possibly_unsupported"
+    If max_sim < SENTENCE_EVIDENCE_THRESHOLD → sentence is suspicious.
 
-Step 2 (optional web): for flagged sentences, issue a web search query.
-    Uses DuckDuckGo Instant Answer JSON API (no API key needed).
-    If top snippet contradicts the claim → "web_contradicted"
-    Otherwise stays "possibly_unsupported"
+Step 2 (LLM): for each suspicious sentence, call Mistral with the
+    best-matching source chunk and ask whether it SUPPORTS, CONTRADICTS,
+    or does NOT MENTION the sentence.
 
-Returns a list of {index, text, status} for sentences that failed the check.
+    This is more accurate than regex/number matching (the previous approach),
+    catching name swaps, inverted causality, and misattributed claims — not
+    just misquoted numbers.
+
+    Returns:
+        "web_contradicted"   — Mistral says the source contradicts it  (red in UI)
+        "possibly_unsupported" — Mistral says the source doesn't mention it (amber in UI)
+        (sentence removed from list) — Mistral says it is supported (cosine false alarm)
+
+    Cost: one Mistral call per flagged sentence, gated behind the cosine filter.
 """
 import re
+import time
 import logging
 from typing import List
 
@@ -34,6 +43,15 @@ _SKIP_PATTERNS = [
     r"^\s*$",
 ]
 
+_MISTRAL_VERIFY_PROMPT = (
+    "You are a fact-checking assistant. Given a source passage and a sentence "
+    "from an AI-generated answer, determine whether the source SUPPORTS, CONTRADICTS, "
+    "or does NOT MENTION the sentence.\n\n"
+    "Source:\n{source}\n\n"
+    "Sentence:\n{sentence}\n\n"
+    "Reply with exactly one word: SUPPORTED, CONTRADICTED, or NOT_MENTIONED."
+)
+
 
 def verify(answer: str, top_chunks: List[dict], embeddings: np.ndarray, chunk_rows: List[int]) -> List[dict]:
     """
@@ -46,7 +64,7 @@ def verify(answer: str, top_chunks: List[dict], embeddings: np.ndarray, chunk_ro
         chunk_rows:  Row indices of top_chunks in the embedding matrix
 
     Returns:
-        List of {index, text, status} for unsupported sentences.
+        List of {index, text, status} for unsupported or contradicted sentences.
     """
     sentences = _split_sentences(answer)
     chunk_vecs = np.array([embeddings[r] for r in chunk_rows if r < len(embeddings)])
@@ -69,15 +87,19 @@ def verify(answer: str, top_chunks: List[dict], embeddings: np.ndarray, chunk_ro
             continue
 
         if max_sim < settings.SENTENCE_EVIDENCE_THRESHOLD:
-            status = _web_check(sent)
-            unsupported.append({"index": i, "text": sent, "status": status})
+            # Find the best-matching chunk to use as the source for LLM verification
+            best_chunk_idx = int(np.argmax(sims))
+            best_chunk_text = top_chunks[best_chunk_idx]["text"] if best_chunk_idx < len(top_chunks) else ""
+
+            status = _mistral_check(sent, best_chunk_text)
+            if status is not None:
+                unsupported.append({"index": i, "text": sent, "status": status})
 
     return unsupported
 
 
 def _split_sentences(text: str) -> List[str]:
     """Split text into sentences."""
-    # Split on . ! ? followed by whitespace + capital letter or end of string
     parts = re.split(r"(?<=[.!?])\s+(?=[A-Z\"])", text)
     return [p.strip() for p in parts if p.strip()]
 
@@ -87,53 +109,63 @@ def _should_skip(sentence: str) -> bool:
     for pattern in _SKIP_PATTERNS:
         if re.match(pattern, s):
             return True
-    # Very short sentences (likely headings or filler)
     if len(sentence.split()) < 5:
         return True
     return False
 
 
-def _web_check(sentence: str) -> str:
+def _mistral_check(sentence: str, source_chunk: str):
     """
-    Query DuckDuckGo Instant Answer API to cross-check a flagged sentence.
-    Returns "web_contradicted" or "possibly_unsupported".
+    Ask Mistral whether the source chunk supports, contradicts, or doesn't
+    mention the flagged sentence.
+
+    Returns:
+        "web_contradicted"     if Mistral says CONTRADICTED
+        "possibly_unsupported" if Mistral says NOT_MENTIONED
+        None                   if Mistral says SUPPORTED (cosine was a false alarm)
     """
-    # Extract the key claim (first ~60 chars, stripped of citations)
-    clean = re.sub(r"\[S\d+\]", "", sentence).strip()
-    query = clean[:100]
+    if not source_chunk:
+        return "possibly_unsupported"
 
-    try:
-        response = httpx.get(
-            "https://api.duckduckgo.com/",
-            params={"q": query, "format": "json", "no_html": "1", "skip_disambig": "1"},
-            timeout=5.0,
-            follow_redirects=True,
-        )
-        response.raise_for_status()
-        data = response.json()
+    prompt = _MISTRAL_VERIFY_PROMPT.format(
+        source=source_chunk[:1500],  # cap to stay within context
+        sentence=sentence,
+    )
 
-        # Check if DuckDuckGo returns an AbstractText that contradicts key numbers
-        abstract = (data.get("AbstractText") or "").lower()
-        if abstract and _contradicts(sentence, abstract):
-            return "web_contradicted"
+    for attempt in range(2):
+        try:
+            response = httpx.post(
+                "https://api.mistral.ai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.MISTRAL_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.MISTRAL_CHAT_MODEL,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.0,
+                    "max_tokens": 10,
+                },
+                timeout=15.0,
+            )
+            if response.status_code in (429, 500, 502, 503, 504):
+                if attempt == 0:
+                    time.sleep(2.0)
+                continue
+            response.raise_for_status()
+            verdict = response.json()["choices"][0]["message"]["content"].strip().upper()
 
-    except Exception as e:
-        logger.debug(f"Web check failed: {e}")
+            if "CONTRADICT" in verdict:
+                return "web_contradicted"
+            if "NOT_MENTIONED" in verdict or "NOT MENTIONED" in verdict:
+                return "possibly_unsupported"
+            # SUPPORTED or anything else → cosine false alarm, don't flag
+            return None
 
+        except Exception as e:
+            logger.debug(f"Mistral verifier call failed (attempt {attempt}): {e}")
+            if attempt == 0:
+                time.sleep(2.0)
+
+    # If both attempts fail, fall back to amber (conservative)
     return "possibly_unsupported"
-
-
-def _contradicts(sentence: str, web_text: str) -> bool:
-    """
-    Simple contradiction check: if the sentence states a number and the web
-    text states a different number in the same context, flag it.
-    This is intentionally conservative to avoid false positives.
-    """
-    sentence_numbers = re.findall(r"\b\d[\d,.]*\b", sentence)
-    web_numbers = re.findall(r"\b\d[\d,.]*\b", web_text)
-
-    if not sentence_numbers or not web_numbers:
-        return False
-
-    # If none of the sentence's numbers appear in the web text, possible contradiction
-    return not any(n in web_numbers for n in sentence_numbers)

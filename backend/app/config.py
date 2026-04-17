@@ -16,8 +16,15 @@ class Settings:
     BM25_TOPK: int = int(os.getenv("BM25_TOPK", "50"))
     RRF_K: int = int(os.getenv("RRF_K", "60"))
     MMR_LAMBDA: float = float(os.getenv("MMR_LAMBDA", "0.7"))
-    SIMILARITY_THRESHOLD_TOP1: float = float(os.getenv("SIMILARITY_THRESHOLD_TOP1", "0.35"))
-    SIMILARITY_THRESHOLD_AVG3: float = float(os.getenv("SIMILARITY_THRESHOLD_AVG3", "0.28"))
+    # Evidence gate thresholds — calibrated against mistral-embed on a sample document.
+    # Calibration (scripts/calibrate_thresholds.py, 2025-04-16):
+    #   Answerable queries (n=5):   top-1 mean=0.818, avg-3 mean=0.812
+    #   Unanswerable queries (n=5): top-1 mean=0.704, avg-3 mean=0.702
+    #   Clean gap of ~0.11; midpoint ≈ 0.76.
+    # We set the threshold slightly below the midpoint to favour recall (fewer false refusals)
+    # while still blocking clearly off-topic queries.
+    SIMILARITY_THRESHOLD_TOP1: float = float(os.getenv("SIMILARITY_THRESHOLD_TOP1", "0.75"))
+    SIMILARITY_THRESHOLD_AVG3: float = float(os.getenv("SIMILARITY_THRESHOLD_AVG3", "0.72"))
     SENTENCE_EVIDENCE_THRESHOLD: float = float(os.getenv("SENTENCE_EVIDENCE_THRESHOLD", "0.50"))
 
     # Chunking

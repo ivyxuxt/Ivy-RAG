@@ -33,13 +33,17 @@ def topk_dense(
     if embeddings is None or len(embeddings) == 0:
         return []
 
-    k = min(k, len(embeddings))
+    n = len(embeddings)
+    k = min(k, n)
 
     # Cosine similarity = dot product (both are L2-normalized)
     sims = embeddings @ query_vec  # shape (N,)
 
-    # argpartition is O(N) — faster than full argsort for large N
-    top_indices = np.argpartition(-sims, k)[:k]
+    # argpartition requires kth < array size; when k == n just argsort all
+    if k == n:
+        top_indices = np.argsort(-sims)
+    else:
+        top_indices = np.argpartition(-sims, k)[:k]
 
     results = [(int(i), float(sims[i])) for i in top_indices]
     results.sort(key=lambda x: -x[1])
