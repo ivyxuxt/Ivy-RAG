@@ -1,9 +1,6 @@
 # Ivy-RAG
 
-A lightweight PDF question-answering system built with FastAPI, React, and Mistral.  
-Upload one or more PDFs, ask questions over the document set, and get answers grounded in retrieved passages with citations.
-
-The project is intentionally simple: retrieval is implemented directly in Python, storage is local, and the system refuses to answer when the evidence is too weak.
+A lightweight PDF question-answering system built with FastAPI, React, and Mistral. Upload one or more PDFs, ask questions over the document set, and get answers grounded in retrieved passages with citations.
 
 ---
 
