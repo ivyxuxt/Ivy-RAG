@@ -35,7 +35,7 @@ The project is intentionally simple: retrieval is implemented directly in Python
 Dense retrieval captures semantic similarity; BM25 catches exact terms, names, and abbreviations. The two ranked lists are merged with RRF, which is rank-based and does not require calibrating the scale difference between cosine and BM25 scores.
 
 **No external vector database**  
-The system uses local files and NumPy-based storage. Every retrieval step is a few lines of Python and directly inspectable. Dense search uses `np.argpartition` for O(N) top-k without a full sort; embeddings are memory-mapped so only accessed rows are paged in.
+The system uses local files and NumPy-based storage. Every retrieval step is a few lines of Python and directly inspectable. Dense search is implemented directly with NumPy, and embeddings are stored in a lightweight memory-mapped format.
 
 **Refusal over guessing**  
 Before generation, top-1 and average top-3 cosine scores are checked against thresholds measured from answerable vs. unanswerable queries. When the evidence is thin, the assistant returns a clear refusal rather than hallucinating.
@@ -149,14 +149,17 @@ MISTRAL_API_KEY=test FRONTEND_ORIGIN=http://localhost:5173 python -m pytest test
 
 ---
 
+## Frontend
+
+The frontend is a simple chat interface for uploading PDFs, asking questions, viewing citations, and seeing unsupported claims flagged in the response. It is built with React and Vite and communicates with the backend over HTTP.
+
+The backend includes upload validation, rate limiting, and CORS configuration, and can optionally require an API key via `X-Api-Key`.
+
+---
+
 ## Limitations
 
 - Dense search scans the full embedding matrix (exact cosine). Fine for document-scale corpora; approximate nearest neighbor would be needed at larger scale.
 - Storage is single-process and in-memory backed by local files. Not suitable for concurrent multi-user production use.
 - PDF extraction quality depends on the source file. Scanned or image-only PDFs will not extract meaningful text.
 
----
-
-## License
-
-MIT
