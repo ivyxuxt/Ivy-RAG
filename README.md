@@ -7,7 +7,7 @@ A lightweight PDF question-answering RAG system built with FastAPI, React, and M
 ## What it does
 
 - Ingests PDF files and chunks them with document and page metadata
-- Classifies each question before retrieval — simple chat never hits the index
+- Classifies each question before retrieval
 - Retrieves evidence with hybrid dense + keyword search, then reranks results
 - Generates cited answers grounded in retrieved passages
 - Returns an insufficient-evidence response when retrieval is weak, rather than guessing
@@ -46,11 +46,9 @@ After generation, each sentence is embedded and compared against the retrieved c
 
 After uploading three years of MBAn employment reports:
 
-> *Compare the 2023–2025 MBAn employment reports in a table. For each year, report average base salary, average signing bonus, 6-month acceptance rate, U.S. placement rate, and top industry. Then give 3–5 bullet points on the biggest changes across years.*
+![Example query and response](readme_illustration.jpg)
 
 The system retrieves relevant passages from each document, generates a Markdown table, and adds cited takeaways — returning an insufficient-evidence response if the documents do not support the question.
-
-![Example query and response](readme_illustration.jpg)
 
 ---
 
