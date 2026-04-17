@@ -6,7 +6,7 @@ interface Props {
 }
 
 export default function CitationCard({ citations }: Props) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
   if (citations.length === 0) return null
 
   return (

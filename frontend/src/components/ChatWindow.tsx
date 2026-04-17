@@ -47,12 +47,19 @@ export default function ChatWindow() {
     }
   }
 
+  function stripCitationBlock(text: string): string {
+    // Remove the LLM-generated "Citations:" trailing block — the CitationCard
+    // panel already shows sources with doc name, pages, and snippet.
+    return text.replace(/\n+\*{0,2}Citations:{0,1}\*{0,2}[\s\S]*$/i, '').trimEnd()
+  }
+
   function renderAnswer(msg: Message) {
     // When sentences are flagged, keep plain-text rendering so per-sentence
     // highlighting spans work correctly. Otherwise render full markdown.
+    const text = stripCitationBlock(msg.text)
     if (msg.meta?.unsupported_sentences?.length) {
       const unsupportedTexts = new Set(msg.meta.unsupported_sentences.map(u => u.text))
-      const sentences = msg.text.split(/(?<=[.!?])\s+(?=[A-Z"])/)
+      const sentences = text.split(/(?<=[.!?])\s+(?=[A-Z"])/)
       return (
         <div className="answer-text">
           {sentences.map((s, i) => {
@@ -76,7 +83,7 @@ export default function ChatWindow() {
 
     return (
       <div className="answer-text answer-markdown">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
       </div>
     )
   }
