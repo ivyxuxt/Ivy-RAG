@@ -48,11 +48,11 @@ export default function ChatWindow() {
   }
 
   function stripCitationBlock(text: string): string {
-    // Only strip a trailing block that is PURELY citation references (no prose).
-    // Pattern: optional "Citations:" header + lines containing only [Sn] refs.
-    // This avoids cutting bullet points or summaries that follow the citations.
     return text
+      // Remove trailing Citations: block (pure [Sn] lines only)
       .replace(/\n+\*{0,2}Citations?:?\*{0,2}\s*\n([\s,\[\]S\d\n]+)$/i, '')
+      // Remove all inline [S1], [S2,S3], [S10] tags — citation cards below serve as reference
+      .replace(/\[S\d+(?:,\s*S\d+)*\]/g, '')
       .trimEnd()
   }
 
