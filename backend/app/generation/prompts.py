@@ -77,8 +77,9 @@ def table_prompt(question: str, context: str) -> str:
     return (
         f"Context:\n{context}\n\n"
         f"Question: {question}\n\n"
-        f"Format your answer as a Markdown table. Add a Citations row or footnote mapping "
-        f"[S1], [S2], etc. to sources. "
+        f"Format your answer as a Markdown table with inline [S1], [S2] citations in cells. "
+        f"After the table, add 3–5 bullet points on the key takeaways, each cited with [S1] etc. "
+        f"Do NOT add a separate Citations section at the end. "
         f"If the context does not support an answer, say \"Insufficient evidence in the uploaded documents.\""
     )
 

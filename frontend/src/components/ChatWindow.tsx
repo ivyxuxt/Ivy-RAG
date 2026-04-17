@@ -48,9 +48,12 @@ export default function ChatWindow() {
   }
 
   function stripCitationBlock(text: string): string {
-    // Remove the LLM-generated "Citations:" trailing block — the CitationCard
-    // panel already shows sources with doc name, pages, and snippet.
-    return text.replace(/\n+\*{0,2}Citations:{0,1}\*{0,2}[\s\S]*$/i, '').trimEnd()
+    // Only strip a trailing block that is PURELY citation references (no prose).
+    // Pattern: optional "Citations:" header + lines containing only [Sn] refs.
+    // This avoids cutting bullet points or summaries that follow the citations.
+    return text
+      .replace(/\n+\*{0,2}Citations?:?\*{0,2}\s*\n([\s,\[\]S\d\n]+)$/i, '')
+      .trimEnd()
   }
 
   function renderAnswer(msg: Message) {
