@@ -1,6 +1,6 @@
 # Ivy-RAG
 
-A lightweight PDF question-answering system built with FastAPI, React, and Mistral. Upload one or more PDFs, ask questions over the document set, and get answers grounded in retrieved passages with citations.
+A lightweight PDF question-answering RAG system built with FastAPI, React, and Mistral. Upload one or more PDFs, ask questions over the document set, and get answers grounded in retrieved passages with citations.
 
 ---
 
