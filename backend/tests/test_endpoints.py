@@ -131,8 +131,12 @@ def test_query_unsafe_refused(client):
     assert data["sufficient_evidence"] is False
 
 
-def test_query_no_documents_returns_insufficient(client):
+@patch("app.generation.llm.store")
+def test_query_no_documents_returns_insufficient(mock_store, client):
     """Without docs, knowledge queries should return insufficient evidence."""
+    mock_store.chunks = []
+    mock_store.embeddings = None
+    mock_store.bm25_index = None
     r = client.post("/query", json={"question": "what is the data retention policy", "top_k": 5})
     assert r.status_code == 200
     data = r.json()

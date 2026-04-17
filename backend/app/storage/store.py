@@ -28,7 +28,10 @@ class IndexStore:
                 self.chunks = [json.loads(line) for line in f if line.strip()]
 
         if os.path.exists(settings.embeddings_path) and self.chunks:
-            self.embeddings = np.load(settings.embeddings_path)
+            # Memory-map the embeddings file so the OS pages in only accessed rows,
+            # keeping RAM usage proportional to what retrieval actually touches
+            # rather than loading the full matrix upfront.
+            self.embeddings = np.load(settings.embeddings_path, mmap_mode="r")
 
         if os.path.exists(settings.bm25_path):
             with open(settings.bm25_path, "rb") as f:
@@ -54,7 +57,7 @@ class IndexStore:
     # ── Ingest ─────────────────────────────────────────────────────────────────
 
     def add_chunks(self, new_chunks: List[dict], new_embeddings: np.ndarray):
-        """Append new chunks + embeddings, rebuild BM25, persist everything."""
+        """Append new chunks + embeddings, update BM25 incrementally, persist everything."""
         start_idx = len(self.chunks)
 
         self.chunks.extend(new_chunks)
@@ -67,7 +70,7 @@ class IndexStore:
             )
 
         self._rebuild_doc_map()
-        self._rebuild_bm25()
+        self._update_bm25(new_chunks)
         self._save_chunks()
         self._save_embeddings()
         self._save_bm25()
@@ -79,6 +82,7 @@ class IndexStore:
         if doc_id not in self._doc_rows:
             return False
 
+        removed_chunks = [c for c in self.chunks if c["doc_id"] == doc_id]
         keep = [i for i in range(len(self.chunks)) if self.chunks[i]["doc_id"] != doc_id]
         self.chunks = [self.chunks[i] for i in keep]
 
@@ -89,7 +93,7 @@ class IndexStore:
                 self.embeddings = np.empty((0, self.embeddings.shape[1]), dtype=np.float32)
 
         self._rebuild_doc_map()
-        self._rebuild_bm25()
+        self._remove_from_bm25(removed_chunks)
         self._save_chunks()
         self._save_embeddings()
         self._save_bm25()
@@ -115,8 +119,20 @@ class IndexStore:
             self._doc_rows.setdefault(doc_id, []).append(i)
 
     def _rebuild_bm25(self):
+        """Full rebuild — used only on initial load."""
         from app.retrieval.bm25 import build_index
         self.bm25_index = build_index(self.chunks)
+
+    def _update_bm25(self, new_chunks: List[dict]):
+        """Incremental update — O(new_docs) instead of O(all_docs)."""
+        from app.retrieval.bm25 import update_index
+        self.bm25_index = update_index(self.bm25_index or {}, new_chunks)
+
+    def _remove_from_bm25(self, removed_chunks: List[dict]):
+        """Remove deleted chunks from index without full rebuild."""
+        from app.retrieval.bm25 import remove_from_index
+        if self.bm25_index:
+            self.bm25_index = remove_from_index(self.bm25_index, removed_chunks)
 
 
 store = IndexStore()

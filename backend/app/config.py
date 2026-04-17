@@ -43,6 +43,10 @@ class Settings:
     MAX_UPLOAD_MB: int = int(os.getenv("MAX_UPLOAD_MB", "25"))
     MAX_UPLOAD_FILES: int = int(os.getenv("MAX_UPLOAD_FILES", "20"))
 
+    # API key auth (optional — leave blank to disable)
+    # Set API_KEY in .env to require X-Api-Key header on all requests.
+    API_KEY: str = os.getenv("API_KEY", "")
+
     # CORS
     FRONTEND_ORIGIN: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 

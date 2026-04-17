@@ -43,6 +43,91 @@ def tokenize(text: str) -> List[str]:
     return [t for t in tokens if t not in _STOPWORDS and len(t) > 1]
 
 
+def update_index(index: dict, new_chunks: List[dict]) -> dict:
+    """
+    Incrementally add new chunks to an existing BM25 index.
+
+    Instead of rebuilding from scratch (O(all_docs)), only processes the new
+    documents (O(new_docs)) and merges them into the existing structures.
+    avg_doc_len and df are recalculated to stay accurate.
+    """
+    if not index:
+        return build_index(new_chunks)
+
+    inverted = index["inverted_index"]
+    doc_lengths = index["doc_lengths"]
+    chunk_ids = list(index["chunk_ids"])
+
+    for chunk in new_chunks:
+        cid = chunk["chunk_id"]
+        tokens = tokenize(chunk["text"])
+        doc_lengths[cid] = len(tokens)
+        chunk_ids.append(cid)
+
+        tf: Dict[str, int] = {}
+        for token in tokens:
+            tf[token] = tf.get(token, 0) + 1
+
+        for term, count in tf.items():
+            if term not in inverted:
+                inverted[term] = {}
+            inverted[term][cid] = count
+
+    n_docs = len(chunk_ids)
+    avg_doc_len = sum(doc_lengths.values()) / n_docs if n_docs > 0 else 1.0
+    df = {term: len(postings) for term, postings in inverted.items()}
+
+    return {
+        "inverted_index": inverted,
+        "doc_lengths": doc_lengths,
+        "avg_doc_len": avg_doc_len,
+        "df": df,
+        "n_docs": n_docs,
+        "chunk_ids": chunk_ids,
+    }
+
+
+def remove_from_index(index: dict, doc_id_chunks: List[dict]) -> dict:
+    """
+    Remove a set of chunks from an existing BM25 index by chunk_id.
+    Used when a document is deleted.
+    """
+    if not index:
+        return index
+
+    remove_ids = {c["chunk_id"] for c in doc_id_chunks}
+
+    inverted = index["inverted_index"]
+    doc_lengths = index["doc_lengths"]
+
+    for cid in remove_ids:
+        doc_lengths.pop(cid, None)
+
+    # Remove chunk entries from inverted index; drop term if empty
+    empty_terms = []
+    for term, postings in inverted.items():
+        for cid in remove_ids:
+            postings.pop(cid, None)
+        if not postings:
+            empty_terms.append(term)
+    for term in empty_terms:
+        del inverted[term]
+
+    chunk_ids = [cid for cid in index["chunk_ids"] if cid not in remove_ids]
+    n_docs = len(chunk_ids)
+    avg_doc_len = sum(doc_lengths.values()) / n_docs if n_docs > 0 else 1.0
+    df = {term: len(postings) for term, postings in inverted.items()}
+
+    return {
+        "inverted_index": inverted,
+        "doc_lengths": doc_lengths,
+        "avg_doc_len": avg_doc_len,
+        "df": df,
+        "n_docs": n_docs,
+        "chunk_ids": chunk_ids,
+    }
+
+
 def build_index(chunks: List[dict]) -> dict:
     """
     Build a BM25 index from a list of chunk dicts.
