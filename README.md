@@ -53,6 +53,8 @@ After uploading three years of MBAn employment reports:
 
 The system retrieves relevant passages from each document, generates a Markdown table, and adds cited takeaways — returning an insufficient-evidence response if the documents do not support the question.
 
+![Example query and response](readme_illustration.jpg)
+
 ---
 
 ## Project structure
