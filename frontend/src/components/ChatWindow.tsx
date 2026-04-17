@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { queryRag, type QueryResponse } from '../api/client'
 import CitationCard from './CitationCard'
 
@@ -46,29 +47,36 @@ export default function ChatWindow() {
   }
 
   function renderAnswer(msg: Message) {
-    if (!msg.meta?.unsupported_sentences?.length) return <p className="answer-text">{msg.text}</p>
-
-    const unsupportedTexts = new Set(msg.meta.unsupported_sentences.map(u => u.text))
-    const sentences = msg.text.split(/(?<=[.!?])\s+(?=[A-Z"])/)
+    // When sentences are flagged, keep plain-text rendering so per-sentence
+    // highlighting spans work correctly. Otherwise render full markdown.
+    if (msg.meta?.unsupported_sentences?.length) {
+      const unsupportedTexts = new Set(msg.meta.unsupported_sentences.map(u => u.text))
+      const sentences = msg.text.split(/(?<=[.!?])\s+(?=[A-Z"])/)
+      return (
+        <div className="answer-text">
+          {sentences.map((s, i) => {
+            const isUnsupported = unsupportedTexts.has(s)
+            const webContradicted = msg.meta?.unsupported_sentences.find(
+              u => u.text === s && u.status === 'web_contradicted',
+            )
+            return (
+              <span
+                key={i}
+                className={isUnsupported ? (webContradicted ? 'web-contradicted' : 'unsupported') : ''}
+                title={isUnsupported ? (webContradicted ? 'Contradicted by sources' : 'Low evidence support') : undefined}
+              >
+                {s}{' '}
+              </span>
+            )
+          })}
+        </div>
+      )
+    }
 
     return (
-      <p className="answer-text">
-        {sentences.map((s, i) => {
-          const isUnsupported = unsupportedTexts.has(s)
-          const webContradicted = msg.meta?.unsupported_sentences.find(
-            u => u.text === s && u.status === 'web_contradicted',
-          )
-          return (
-            <span
-              key={i}
-              className={isUnsupported ? (webContradicted ? 'web-contradicted' : 'unsupported') : ''}
-              title={isUnsupported ? (webContradicted ? 'Contradicted by web sources' : 'Low evidence support') : undefined}
-            >
-              {s}{' '}
-            </span>
-          )
-        })}
-      </p>
+      <div className="answer-text answer-markdown">
+        <ReactMarkdown>{msg.text}</ReactMarkdown>
+      </div>
     )
   }
 

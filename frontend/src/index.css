@@ -197,6 +197,39 @@ ul { list-style: none; }
 .send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .send-btn:hover:not(:disabled) { opacity: 0.85; }
 
+/* ═══ Markdown rendering inside assistant bubble ══════════ */
+.answer-markdown p { margin: 0 0 8px 0; line-height: 1.6; }
+.answer-markdown p:last-child { margin-bottom: 0; }
+.answer-markdown ul, .answer-markdown ol { padding-left: 20px; margin: 6px 0 10px; }
+.answer-markdown li { margin-bottom: 4px; line-height: 1.5; }
+.answer-markdown ul { list-style: disc; }
+.answer-markdown ol { list-style: decimal; }
+.answer-markdown strong { font-weight: 700; }
+.answer-markdown em { font-style: italic; }
+.answer-markdown table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 0.82rem;
+}
+.answer-markdown th, .answer-markdown td {
+  border: 1px solid var(--color-border);
+  padding: 6px 10px;
+  text-align: left;
+}
+.answer-markdown th {
+  background: var(--color-surface);
+  font-weight: 600;
+}
+.answer-markdown tr:nth-child(even) td { background: var(--color-surface); }
+.answer-markdown code {
+  background: var(--color-surface);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 0.85em;
+  font-family: monospace;
+}
+
 /* ═══ Citations ═══════════════════════════════════════ */
 .citations { margin-top: 8px; }
 .citations-toggle {
