@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { queryRag, type QueryResponse } from '../api/client'
 import CitationCard from './CitationCard'
 
@@ -75,7 +76,7 @@ export default function ChatWindow() {
 
     return (
       <div className="answer-text answer-markdown">
-        <ReactMarkdown>{msg.text}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
       </div>
     )
   }

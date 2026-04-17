@@ -198,10 +198,10 @@ ul { list-style: none; }
 .send-btn:hover:not(:disabled) { opacity: 0.85; }
 
 /* ═══ Markdown rendering inside assistant bubble ══════════ */
-.answer-markdown p { margin: 0 0 8px 0; line-height: 1.6; }
+.answer-markdown p { margin: 0 0 6px 0; line-height: 1.6; }
 .answer-markdown p:last-child { margin-bottom: 0; }
-.answer-markdown ul, .answer-markdown ol { padding-left: 20px; margin: 6px 0 10px; }
-.answer-markdown li { margin-bottom: 4px; line-height: 1.5; }
+.answer-markdown ul, .answer-markdown ol { padding-left: 18px; margin: 4px 0 6px; }
+.answer-markdown li { margin-bottom: 2px; line-height: 1.45; }
 .answer-markdown ul { list-style: disc; }
 .answer-markdown ol { list-style: decimal; }
 .answer-markdown strong { font-weight: 700; }
